@@ -47,4 +47,4 @@ check:
 fun read_json() :: JSON:
     parse_json(syntax_read())
 
-print(read_json())
+// print(read_json())
