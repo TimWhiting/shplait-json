@@ -1,0 +1,50 @@
+#lang shplait
+
+type JSON
+| JSNull()
+| JSBool(value :: Boolean)
+| JSString(value :: String)
+| JSNum(value :: Int)
+| JSList(vals :: Listof(JSON))
+| JSDict(vals :: Listof(String * JSON))
+
+fun parse_json(stx :: Syntax) :: JSON:
+    cond 
+    | syntax_is_integer(stx): JSNum(syntax_to_integer(stx))
+    | syntax_is_string(stx): JSString(syntax_to_string(stx))
+    | syntax_is_symbol(stx): 
+       block:
+        def val = syntax_to_symbol(stx)
+        cond 
+        | val == #'true: JSBool(#true)
+        | val == #'false: JSBool(#false)
+        | val == #'null: JSNull()
+    | ~else:
+        match stx
+        | '[]' : JSList([])
+        | '{}' : JSDict([])
+        | '[$x, ...]' : JSList(parse_json_list(stx))
+        | '{$x : $y, ...}' : JSDict(parse_json_dict(stx)) 
+
+
+fun parse_json_list(stx :: Syntax):: Listof(JSON):
+    match stx
+    | '[]' : []
+    | '[$x]' : cons(parse_json(x), [])
+    | '[$x, $y, ...]' : cons(parse_json(x), parse_json_list('[$y, ...]'))
+    
+
+fun parse_json_dict(stx :: Syntax):: Listof(String * JSON):
+    match stx
+    | '{}' : []
+    | '{$x : $y, $xs, ...}' : cons(values(syntax_to_string(x), parse_json(y)), parse_json_dict('{$xs, ...}'))
+    | '{$x : $y}' : cons(values(syntax_to_string(x), parse_json(y)), [])
+
+check:
+    parse_json('{"a": "b", "c": [1, 2]}')
+    ~is JSDict([values("a", JSString("b")), values("c", JSList([JSNum(1), JSNum(2)]))])
+
+fun read_json() :: JSON:
+    parse_json(syntax_read())
+
+print(read_json())
